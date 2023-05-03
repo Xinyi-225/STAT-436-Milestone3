@@ -1,0 +1,369 @@
+---
+title: "Project m3"
+author: "Xinyi Wang"
+date: "2023-05-02"
+---
+
+```{r setup, include=FALSE, message=FALSE}
+library(shinyWidgets)
+library(rsconnect)
+library(plotly)
+library(DT)
+library(shiny)
+library(ggplot2)
+library(tidyverse)
+library(lubridate)
+library(patchwork)
+library(rstatix)
+library(ggpubr)
+library(RColorBrewer)
+theme_set(theme_bw())
+```
+
+
+#Data preparation and data cleaning
+```{r,message=FALSE, include=FALSE}
+data <- read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv") %>%
+  drop_na() %>%
+  mutate(sex = ifelse(sex == 1, "male", "female"),
+         target = ifelse(target == 1, "have", "not have")) 
+data$index <- 1:nrow(data)
+data
+```
+
+
+#Logistic regression
+```{r}
+data1 <- read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv") %>%
+  drop_na()
+model = glm(target~thalach + trestbps + chol, data = data1, family = binomial(link = "logit"))
+summary(model)
+```
+
+
+#Data overview
+#density plots
+```{r}
+ d1 = ggplot(data, aes(x = trestbps)) +
+     geom_density(aes(fill = as.factor(target)), alpha = 0.5)+
+  labs(fill = "Disease Status", shape = "sex")
+ d2 = ggplot(data,aes(x=chol))+
+  geom_density(aes(fill=as.factor(target)), alpha = 0.5)+
+  labs(fill = "Disease Status", shape = "sex")
+ d3 =ggplot(data,aes(x=thalach))+
+  geom_density(aes(fill=as.factor(target)), alpha = 0.5)+
+  labs(fill = "Disease Status", shape = "sex")
+(d1/d2/d3) +
+  plot_layout(guides = "collect") +
+  plot_annotation(theme = theme(legend.position = "right", legend.title = element_text(size = 10))) 
+```
+
+#scatterplots
+```{r, fig.width = 8, fig.height = 6}
+p <- list()
+
+ p[["scatter"]] <- ggplot(data,aes(x = age,y = thalach))+
+  geom_point(aes(col = as.factor(target), shape = as.factor(sex)))+ labs(fill = "Disease Status") + theme(legend.text = element_text(size = 15))+ labs(color = "Disease Status", shape = "sex")
+
+
+ p[["scatter2"]] <- ggplot(data, aes(x = age,y = trestbps))+
+  geom_point(aes(col=as.factor(target),shape = as.factor(sex))) + labs(fill = "Disease Status") + theme(legend.text = element_text(size = 15))+ labs(color = "Disease Status", shape = "sex")
+ 
+ p[["scatter3"]] <- ggplot(data, aes(x = age,y = chol))+
+  geom_point(aes(col=as.factor(target),shape = as.factor(sex))) + labs(fill = "Disease Status") + theme(legend.text = element_text(size = 15)) + labs(color = "Disease Status", shape = "sex")
+
+  p[["scatter"]]/p[["scatter2"]]/p[["scatter3"]] +
+    plot_layout(guides = "collect") &
+   plot_annotation(theme = theme(legend.position = "right", legend.title = element_text(size = 10)))
+```
+  
+
+#function generation
+
+```{r}
+data_table <- function(data, selected_) {
+  data %>%
+    filter(selected_) %>%
+    select(age,sex,trestbps,chol,thalach,thal,target)
+}
+data_mean <- function(data, selected_) {
+  data %>%
+    filter(selected_) %>%
+    summarise(mean=mean(target))%>%
+    pull()
+}
+
+counts <- list(
+  "trestbps" = count(data, trestbps),
+  "chol" = count(data, chol),
+  "thalach" = count(data, thalach),
+  "age" = count(data, age)
+)
+
+
+bar_plot <- function(sub_flights, v, width = 5) {
+  ggplot(counts[[v]], aes(.data[[v]], n)) +
+    geom_col(fill = "#d3d3d3", stat = "identity", width = width) +
+    geom_col(data = sub_flights, stat = "identity", width = width)
+}
+
+plot_overlay <- function(selected_, v, width = 5) {
+  data %>%
+    filter(selected_) %>%
+    count(.data[[v]]) %>%
+    bar_plot(v, width) 
+}
+
+scatterplot <- function(data, selected_) {
+  data %>%
+    mutate(selected_ = selected_) %>%
+    ggplot() +
+    geom_point(aes(chol, thalach, col = as.factor(target), shape = as.factor(sex), alpha = as.numeric(selected_))) +
+    scale_alpha(range = c(0.05, 0.6)) +
+    labs(shape = "sex", alpha = "Selected", col = "Target")
+}
+
+
+reset_selection <- function(x, brush) {
+  xvar <- str_match(brush$mapping$x, "trestbps|chol|age")[1]
+  brushedPoints(x, brush, allRows = TRUE, xvar = xvar)$selected_
+}
+```
+
+
+**main code**
+
+```{r, fig.width = 18, fig.height = 16}
+ui1 <- fluidPage(
+  titlePanel("Risk factors of heart disease"),
+  setBackgroundColor(
+    color = c("lightyellow","mistyrose"),
+    gradient = "linear",
+    direction = "bottom"
+  ),
+  fluidRow(
+    column(6,
+      p("This dashboard displays histograms to display distribution of age, heart rate, blood pressure, and cholesterol, as well as a scatterplot to show correlation of cholesterol and heart rate and the table to show detailed information. By brushing different subsets, the new outputs would be re-generated."),
+      br(),
+      h4("Selected data information:"),
+      tags$ul(
+        tags$b(textOutput("info")),
+        tags$b(textOutput("average_heart_disease_rate"))
+      ),
+      plotOutput("histogram_trestbps", brush = brushOpts("plot_brush", direction = "x"), height = 200),
+      plotOutput("histogram_chol", brush = brushOpts("plot_brush", direction = "x"), height = 200),
+      plotOutput("histogram_heartrate", brush = brushOpts("plot_brush", direction = "x"), height = 200),
+      plotOutput("histogram_age", brush = brushOpts("plot_brush", direction = "x"), height = 200)
+    ),
+    column(6,
+      plotOutput("scatterplot", brush = "plot_brush"),
+      dataTableOutput("table")
+    )
+  )
+)
+
+server1 <- function(input, output) {
+  selected <- reactiveVal(rep(TRUE, nrow(data)))
+  
+  observeEvent(
+    input$plot_brush,
+    selected(reset_selection(data, input$plot_brush))
+  )
+  
+  output$histogram_trestbps <- renderPlot({
+  plot_overlay(selected(),"trestbps",1) + ggtitle("Distribution of Blood Pressure (trestbps)/cholestrol(chol)/heart rate(thalach)/age")
+})
+  output$histogram_chol <- renderPlot(plot_overlay(selected(),"chol",5))
+  output$histogram_heartrate <- renderPlot(plot_overlay(selected(),"thalach",5))
+  output$histogram_age <- renderPlot(plot_overlay(selected(),"age",1))
+  output$scatterplot <- renderPlot({scatterplot(data, selected())+ ggtitle("Correlation between heart rate and cholestrol")
+})
+  output$table <- renderDataTable(data_table(data, selected()))
+  output$average_heart_disease_rate <- renderText({
+    paste0("Average heart disease rate for selected data: ", data_mean(data1, selected()))
+  })
+  output$info = renderText({
+    paste0("Selected data count: ", nrow(filter(data, selected())))
+  })
+}
+
+app1 <- shinyApp(ui = ui1, server = server1)
+
+```
+
+
+
+#grouping age into 4 groups
+
+```{r}
+theme_set(theme_gray())
+data=read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv")
+min(data$age)
+max(data$age)
+heart4 <- data %>% 
+  mutate(sex = ifelse(sex == 1, "Male", "Female")) %>% 
+  mutate(target = ifelse(target == 1, "Disease", "No Disease"),age_range = case_when( 20<age& age<=40 ~ "20-40",
+                                 41<=age& age<=50 ~ "40-50",
+                                 51<=age& age<=60 ~ "50-60",
+                                 61<=age ~ "over 60",
+                                 ))
+heart4
+```
+
+
+#stat test and boxplots
+
+```{r}
+#generate function
+stat.test <- heart4 %>%
+  group_by(age_range) %>%
+  t_test(chol ~ target,paired = FALSE) %>%
+  adjust_pvalue() %>%
+  add_significance("p.adj")
+stat.test
+```
+
+```{r}
+theme_set(theme_bw())
+stat =function(x,y){
+  fm <- as.formula(paste(x, y , sep = "~"))
+  heart4%>%
+  group_by(age_range) %>%
+  t_test(fm,paired = FALSE) %>%
+  adjust_pvalue() %>%
+  add_significance("p.adj")%>%
+    add_xy_position(x = "target")%>%
+   mutate(custom.label = case_when(
+      p <= 0.01 ~ "significant",
+      p > 0.01 & p <= 0.1 ~ as.character(round(p, 3)),
+      p > 0.1 ~ "not significant"
+    ))
+}
+```
+
+```{r}
+chol = stat(x = "chol", y = "target")
+trestbps = stat(x = "trestbps", y = "target")
+thalach = stat(x = "thalach", y = "target")
+```
+
+```{r}
+bp1 = function(x){
+  ggboxplot(heart4, x = "target", y = x,fill = "target", palette = "jco",facet.by = "age_range")+theme_bw()
+}
+```
+
+```{r,fig.width = 11}
+p1 = bp1("chol")+ 
+  stat_pvalue_manual(chol, label = "custom.label") +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.10)))
+
+
+p2 = bp1("trestbps")+ 
+  stat_pvalue_manual(trestbps, label = "custom.label") +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.10)))
+
+p3 = bp1("thalach")+ 
+  stat_pvalue_manual(thalach, label = "custom.label") +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.10)))
+
+p1+ p2+ p3+ plot_layout(guide = "collect")
+```
+
+
+#usmap shiny
+```{r}
+# prepare data
+data10 = read_csv("https://uwmadison.box.com/shared/static/8cxdb08bj3jfcicda06h0n0tg5l50kn7.csv")
+data20 <- data10 %>%
+  rename(Gender = Stratification1,
+         Race = Stratification2)
+
+us_states <- map_data("state")
+state = read.csv("https://uwmadison.box.com/shared/static/59noryjk6oac0zlt42uhd1ktfmh9la9l.csv")
+state$City = tolower(state$City)
+#function of plot the map 
+```
+
+```{r}
+plot_choropleth <- function(filtered_data) {
+  
+  state_data <- filtered_data %>%
+    group_by(LocationAbbr) %>%
+    summarize(value = round(mean(Data_Value, na.rm = TRUE),0))
+
+  merged_data <- inner_join(state_data , state, by = c("LocationAbbr" = "State"))
+  merged_data2 <- inner_join(us_states,merged_data, by = c("region" = "City"))
+
+  ggplot(data = merged_data2, aes(x = long, y = lat, group = group, fill = value, text = paste("State:", LocationAbbr, "<br>Value:", value))) +
+    geom_polygon(color = "black", size = 0.2) +
+    scale_fill_viridis_c(option = "viridis", na.value = "gray90",  # Use the Viridis color scale
+                     guide = guide_colorbar(title = "Average Death")) +  # Update the legend title
+    labs(title = "State Average Death Rate per 100,000 by CVD") +
+    theme_minimal() +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank(),
+          legend.position = "right")
+}
+
+```
+
+
+
+**main code of usmap** 
+
+```{r,warning = False}
+ui2 <- fluidPage(
+  titlePanel("Choropleth Map by Gender and Race"),
+  setBackgroundColor(
+    color = c("pink", "lightblue"),
+    gradient = "linear",
+    direction = "bottom"
+  ),
+  p(strong("Description: "),
+    "This interactive choropleth map displays the average death rate per 100,000 by cardiovascular disease (CVD) in the United States, based on gender and race. Use the sidebar options to select gender and race categories to filter the data displayed on the map. Click on a state to see the corresponding average death rate per 100,000 for the selected category."),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("gender", label = "Select Gender",
+                  choices = c("Overall", "Male", "Female")),
+      selectInput("race", label = "Select Race",
+                  choices = c("Overall", "White", "Black", "Hispanic",
+                              "Asian and Pacific Islander", "American Indian and Alaskan Native"))
+    ),
+    
+    mainPanel(
+      plotlyOutput("choroplethMap"),
+      verbatimTextOutput("info")
+    )
+  )
+)
+server2 <- function(input, output, session) {
+  output$choroplethMap <- renderPlotly({
+    # Filter data based on user selection
+    filtered_data <- data20 %>%
+      filter(Gender == input$gender,
+             Race == input$race)
+    
+    choropleth_map <- plot_choropleth(filtered_data)
+
+    ggplotly(choropleth_map, tooltip = "text") %>%
+      layout(dragmode = "select")
+  })
+
+ observeEvent(event_data("plotly_click", source = "choroplethMap"), {
+  click <- event_data("plotly_click", source = "choroplethMap")
+  state_info <- strsplit(click[["text"]], "<br>")[[1]]
+  state_abbr <- gsub("State: ", "", state_info[1])
+  value <- gsub("Value: ", "", state_info[2])
+  output$info <- renderText(paste("State:", state_abbr, " Value:", value))
+})
+
+}
+
+app2 = shinyApp(ui2, server2)
+
+```
