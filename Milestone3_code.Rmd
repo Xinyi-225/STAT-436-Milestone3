@@ -131,8 +131,7 @@ reset_selection <- function(x, brush) {
 ```
 
 
-**main code**
-
+#main code of shiny app
 ```{r, fig.width = 18, fig.height = 16}
 ui1 <- fluidPage(
   titlePanel("Risk factors of heart disease"),
@@ -194,7 +193,6 @@ app1 <- shinyApp(ui = ui1, server = server1)
 
 
 #grouping age into 4 groups
-
 ```{r}
 theme_set(theme_gray())
 data=read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv")
@@ -211,8 +209,7 @@ heart4
 ```
 
 
-#stat test and boxplots
-
+#T test and boxplots
 ```{r}
 #generate function
 stat.test <- heart4 %>%
@@ -285,6 +282,7 @@ state$City = tolower(state$City)
 #function of plot the map 
 ```
 
+#function generation
 ```{r}
 plot_choropleth <- function(filtered_data) {
   
@@ -313,8 +311,7 @@ plot_choropleth <- function(filtered_data) {
 
 
 
-**main code of usmap** 
-
+#main code of usmap
 ```{r,warning = False}
 ui2 <- fluidPage(
   titlePanel("Choropleth Map by Gender and Race"),
