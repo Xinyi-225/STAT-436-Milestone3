@@ -367,7 +367,7 @@ plot_choropleth <- function(filtered_data) {
     geom_polygon(color = "black", size = 0.2) +
     scale_fill_viridis_c(option = "viridis", na.value = "gray90",  # Use the Viridis color scale
                      guide = guide_colorbar(title = "Average Death")) +  # Update the legend title
-    labs(title = "State Average Death Rate per 100,000 by CVD") +
+    labs(title = "State Average Death per 100,000 by CVD") +
     theme_minimal() +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
@@ -391,7 +391,7 @@ ui2 <- fluidPage(
     direction = "bottom"
   ),
   p(strong("Description: "),
-    "This interactive choropleth map displays the average death rate per 100,000 by cardiovascular disease (CVD) in the United States, based on gender and race. Use the sidebar options to select gender and race categories to filter the data displayed on the map. Click on a state to see the corresponding average death rate per 100,000 for the selected category."),
+    "This interactive choropleth map displays the average death per 100,000 by cardiovascular disease (CVD) in the United States, based on gender and race. Use the sidebar options to select gender and race categories to filter the data displayed on the map. Click on a state to see the corresponding average death per 100,000 for the selected category."),
   
   sidebarLayout(
     sidebarPanel(
