@@ -25,8 +25,8 @@ theme_set(theme_bw())
 ```{r,message=FALSE, include=FALSE}
 data <- read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv") %>%
   drop_na() %>%
-  mutate(sex = ifelse(sex == 1, "male", "female"),
-         target = ifelse(target == 1, "have", "not have")) 
+  mutate(sex = ifelse(sex == 1, "Male", "Female"),
+         target = ifelse(target == 1, "Disease", "No Disease")) 
 data$index <- 1:nrow(data)
 data
 ```
@@ -46,13 +46,16 @@ summary(model)
 ```{r}
  d1 = ggplot(data, aes(x = trestbps)) +
      geom_density(aes(fill = as.factor(target)), alpha = 0.5)+
-  labs(fill = "Disease Status", shape = "sex")
+  labs(fill = "Disease Status", shape = "sex", x = "blood pressure")+
+   scale_y_continuous(expand = c(0,0,0.001,0.001))
  d2 = ggplot(data,aes(x=chol))+
   geom_density(aes(fill=as.factor(target)), alpha = 0.5)+
-  labs(fill = "Disease Status", shape = "sex")
+  labs(fill = "Disease Status", shape = "sex", x = "cholesterol")+
+   scale_y_continuous(expand = c(0,0,0.001,0.001))
  d3 =ggplot(data,aes(x=thalach))+
   geom_density(aes(fill=as.factor(target)), alpha = 0.5)+
-  labs(fill = "Disease Status", shape = "sex")
+  labs(fill = "Disease Status", shape = "sex", x = "heart rate")+
+   scale_y_continuous(expand = c(0,0,0.001,0.001))
 (d1/d2/d3) +
   plot_layout(guides = "collect") +
   plot_annotation(theme = theme(legend.position = "right", legend.title = element_text(size = 10))) 
@@ -62,21 +65,59 @@ summary(model)
 ```{r, fig.width = 8, fig.height = 6}
 p <- list()
 
- p[["scatter"]] <- ggplot(data,aes(x = age,y = thalach))+
-  geom_point(aes(col = as.factor(target), shape = as.factor(sex)))+ labs(fill = "Disease Status") + theme(legend.text = element_text(size = 15))+ labs(color = "Disease Status", shape = "sex")
+
+data5 = data1 %>% filter(target ==1)
+data6 = data1 %>% filter(target ==0)
+
+p[["scatter"]]  <- ggplot(data, aes(x = age, y = thalach)) +
+  geom_point(aes(col = as.factor(target), shape = as.factor(sex))) +
+  labs(fill = "Disease Status") +
+  stat_smooth(data = data5, method = "lm", se = FALSE, col = "red", size = 1.5) +
+  stat_smooth(data = data6, method = "lm", se = FALSE, col = "blue", size = 1.5) +
+  theme(legend.text = element_text(size = 15)) +
+  labs(color = "Disease Status", y = "heart rate",shape = "sex")
 
 
  p[["scatter2"]] <- ggplot(data, aes(x = age,y = trestbps))+
-  geom_point(aes(col=as.factor(target),shape = as.factor(sex))) + labs(fill = "Disease Status") + theme(legend.text = element_text(size = 15))+ labs(color = "Disease Status", shape = "sex")
+  geom_point(aes(col=as.factor(target),shape = as.factor(sex))) +
+   labs(fill = "Disease Status") +
+   stat_smooth(data = data5, aes(x = age, y = trestbps), method = "lm", se = FALSE, col = "red", size = 1.5)+
+  stat_smooth(data = data6, method = "lm", se = FALSE, col = "blue", size = 1.5) +
+   theme(legend.text = element_text(size = 15))+ 
+   labs(color = "Disease Status", y = "blood pressure",shape = "sex")
  
  p[["scatter3"]] <- ggplot(data, aes(x = age,y = chol))+
-  geom_point(aes(col=as.factor(target),shape = as.factor(sex))) + labs(fill = "Disease Status") + theme(legend.text = element_text(size = 15)) + labs(color = "Disease Status", shape = "sex")
+  geom_point(aes(col=as.factor(target),shape = as.factor(sex))) + 
+   labs(fill = "Disease Status") + 
+   stat_smooth(data = data5, aes(x = age, y = chol), method = "lm", se = FALSE, col = "red", size = 1.5)+
+  stat_smooth(data = data6, method = "lm", se = FALSE, col = "blue", size = 1.5) +
+   theme(legend.text = element_text(size = 15)) + 
+   labs(color = "Disease Status", y = "cholesterol",shape = "sex")
 
   p[["scatter"]]/p[["scatter2"]]/p[["scatter3"]] +
     plot_layout(guides = "collect") &
    plot_annotation(theme = theme(legend.position = "right", legend.title = element_text(size = 10)))
 ```
-  
+
+#grouping age into 4 groups
+```{r}
+theme_set(theme_gray())
+data=read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv")
+min(data$age)
+max(data$age)
+heart4 <- data %>% 
+  mutate(sex = ifelse(sex == 1, "Male", "Female")) %>% 
+  mutate(target = ifelse(target == 1, "Disease", "No Disease"),age_range = case_when( 20<age& age<=40 ~ "20-40",
+                                 41<=age& age<=50 ~ "40-50",
+                                 51<=age& age<=60 ~ "50-60",
+                                 61<=age ~ "over 60",
+                                 ))
+
+heart4 <- heart4 %>%
+  mutate(row_index = row_number())
+
+```
+
 
 #function generation
 
@@ -100,18 +141,19 @@ counts <- list(
   "age" = count(data, age)
 )
 
-
 bar_plot <- function(sub_flights, v, width = 5) {
-  ggplot(counts[[v]], aes(.data[[v]], n)) +
-    geom_col(fill = "#d3d3d3", stat = "identity", width = width) +
-    geom_col(data = sub_flights, stat = "identity", width = width)
+  ggplot(counts[[v]], aes(.data[[v]], n, fill = age_range)) +
+    geom_col(data = sub_flights, stat = "identity", width = width, aes(fill = age_range)) +
+    scale_fill_manual(values = c("20-40" = "red", "40-50" = "black", "50-60" = "purple", "over 60" = "pink"))
 }
+
 
 plot_overlay <- function(selected_, v, width = 5) {
   data %>%
     filter(selected_) %>%
-    count(.data[[v]]) %>%
-    bar_plot(v, width) 
+    add_age_range() %>% # Add this line to include age_range info
+    count(.data[[v]], age_range) %>%
+    bar_plot(v, width)
 }
 
 scatterplot <- function(data, selected_) {
@@ -120,7 +162,7 @@ scatterplot <- function(data, selected_) {
     ggplot() +
     geom_point(aes(chol, thalach, col = as.factor(target), shape = as.factor(sex), alpha = as.numeric(selected_))) +
     scale_alpha(range = c(0.05, 0.6)) +
-    labs(shape = "sex", alpha = "Selected", col = "Target")
+    labs(shape = "sex", alpha = "Selected", col = "Disease Status")
 }
 
 
@@ -128,6 +170,15 @@ reset_selection <- function(x, brush) {
   xvar <- str_match(brush$mapping$x, "trestbps|chol|age")[1]
   brushedPoints(x, brush, allRows = TRUE, xvar = xvar)$selected_
 }
+add_age_range <- function(data) {
+  data %>%
+    mutate(age_range = case_when( 20 < age & age <= 40 ~ "20-40",
+                                  41 <= age & age <= 50 ~ "40-50",
+                                  51 <= age & age <= 60 ~ "50-60",
+                                  61 <= age ~ "over 60",
+    ))
+}
+
 ```
 
 
@@ -142,17 +193,17 @@ ui1 <- fluidPage(
   ),
   fluidRow(
     column(6,
-      p("This dashboard displays histograms to display distribution of age, heart rate, blood pressure, and cholesterol, as well as a scatterplot to show correlation of cholesterol and heart rate and the table to show detailed information. By brushing different subsets, the new outputs would be re-generated."),
+      p(strong("Description: "),"This shiny displays histograms to display distribution of age, heart rate, blood pressure, and cholesterol, as well as a scatterplot to show correlation of cholesterol and heart rate and the table to show detailed information. By selecting different age range and brushing different subsets, the new outputs would be re-generated."),
       br(),
       h4("Selected data information:"),
       tags$ul(
         tags$b(textOutput("info")),
         tags$b(textOutput("average_heart_disease_rate"))
       ),
+      selectInput("age","Select age range:",choices = sort(unique(heart4$age_range)), multiple = TRUE),
       plotOutput("histogram_trestbps", brush = brushOpts("plot_brush", direction = "x"), height = 200),
       plotOutput("histogram_chol", brush = brushOpts("plot_brush", direction = "x"), height = 200),
-      plotOutput("histogram_heartrate", brush = brushOpts("plot_brush", direction = "x"), height = 200),
-      plotOutput("histogram_age", brush = brushOpts("plot_brush", direction = "x"), height = 200)
+      plotOutput("histogram_heartrate", brush = brushOpts("plot_brush", direction = "x"), height = 200)
     ),
     column(6,
       plotOutput("scatterplot", brush = "plot_brush"),
@@ -162,27 +213,47 @@ ui1 <- fluidPage(
 )
 
 server1 <- function(input, output) {
-  selected <- reactiveVal(rep(TRUE, nrow(data)))
-  
+  selected <- reactiveVal(rep(TRUE, nrow(heart4)))
+
+  # Create age_range variable as a reactive function
+  age_filtered_data <- reactive({
+    req(input$age)
+    heart4 %>%
+      filter(age_range %in% input$age)
+  })
+
   observeEvent(
     input$plot_brush,
-    selected(reset_selection(data, input$plot_brush))
+    selected(reset_selection(heart4, input$plot_brush))
   )
-  
+
+  # Update the observeEvent for input$age
+  observeEvent(
+    input$age,
+    {
+      if (is.null(input$age)) {
+        selected(rep(TRUE, nrow(heart4)))
+      } else {
+        age_filtered_rows <- age_filtered_data()$row_index
+        selected_age <- rep(FALSE, nrow(heart4))
+        selected_age[age_filtered_rows] <- TRUE
+        selected(selected_age)
+      }
+    }
+  )
   output$histogram_trestbps <- renderPlot({
   plot_overlay(selected(),"trestbps",1) + ggtitle("Distribution of Blood Pressure (trestbps)/cholestrol(chol)/heart rate(thalach)/age")
 })
   output$histogram_chol <- renderPlot(plot_overlay(selected(),"chol",5))
   output$histogram_heartrate <- renderPlot(plot_overlay(selected(),"thalach",5))
-  output$histogram_age <- renderPlot(plot_overlay(selected(),"age",1))
-  output$scatterplot <- renderPlot({scatterplot(data, selected())+ ggtitle("Correlation between heart rate and cholestrol")
+  output$scatterplot <- renderPlot({scatterplot(heart4, selected())+ ggtitle("Correlation between heart rate and cholestrol")
 })
-  output$table <- renderDataTable(data_table(data, selected()))
+  output$table <- renderDataTable(data_table(heart4, selected()))
   output$average_heart_disease_rate <- renderText({
     paste0("Average heart disease rate for selected data: ", data_mean(data1, selected()))
   })
   output$info = renderText({
-    paste0("Selected data count: ", nrow(filter(data, selected())))
+    paste0("Selected data count: ", nrow(filter(heart4, selected())))
   })
 }
 
@@ -190,23 +261,6 @@ app1 <- shinyApp(ui = ui1, server = server1)
 
 ```
 
-
-
-#grouping age into 4 groups
-```{r}
-theme_set(theme_gray())
-data=read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv")
-min(data$age)
-max(data$age)
-heart4 <- data %>% 
-  mutate(sex = ifelse(sex == 1, "Male", "Female")) %>% 
-  mutate(target = ifelse(target == 1, "Disease", "No Disease"),age_range = case_when( 20<age& age<=40 ~ "20-40",
-                                 41<=age& age<=50 ~ "40-50",
-                                 51<=age& age<=60 ~ "50-60",
-                                 61<=age ~ "over 60",
-                                 ))
-heart4
-```
 
 
 #T test and boxplots
@@ -246,7 +300,8 @@ thalach = stat(x = "thalach", y = "target")
 
 ```{r}
 bp1 = function(x){
-  ggboxplot(heart4, x = "target", y = x,fill = "target", palette = "jco",facet.by = "age_range")+theme_bw()
+  ggboxplot(heart4, x = "target", y = x,fill = "target", palette = "jco",facet.by = "age_range")+
+    labs(fill = "Disease Status")+theme_bw()
 }
 ```
 
@@ -328,8 +383,7 @@ ui2 <- fluidPage(
       selectInput("gender", label = "Select Gender",
                   choices = c("Overall", "Male", "Female")),
       selectInput("race", label = "Select Race",
-                  choices = c("Overall", "White", "Black", "Hispanic",
-                              "Asian and Pacific Islander", "American Indian and Alaskan Native"))
+                  choices = c("Overall", "White", "Black", "Hispanic","Asian and Pacific Islander", "American Indian and Alaskan Native"))
     ),
     
     mainPanel(
