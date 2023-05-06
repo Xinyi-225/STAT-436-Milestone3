@@ -26,7 +26,10 @@ theme_set(theme_bw())
 data <- read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv") %>%
   drop_na() %>%
   mutate(sex = ifelse(sex == 1, "Male", "Female"),
-         target = ifelse(target == 1, "Disease", "No Disease")) 
+         target = ifelse(target == 1, "Disease", "No Disease")) %>% 
+  rename("heart.rate" = "thalach",
+         "blood.pressure" = "trestbps",
+         "cholesterol" = "chol")
 data$index <- 1:nrow(data)
 data
 ```
@@ -35,8 +38,11 @@ data
 #Logistic regression
 ```{r}
 data1 <- read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv") %>%
-  drop_na()
-model = glm(target~thalach + trestbps + chol, data = data1, family = binomial(link = "logit"))
+  drop_na()%>% 
+  rename("heart.rate" = "thalach",
+         "blood.pressure" = "trestbps",
+         "cholesterol" = "chol")
+model = glm(target~heart.rate + blood.pressure + cholesterol, data = data1, family = binomial(link = "logit"))
 summary(model)
 ```
 
@@ -44,15 +50,15 @@ summary(model)
 #Data overview
 #density plots
 ```{r}
- d1 = ggplot(data, aes(x = trestbps)) +
+ d1 = ggplot(data, aes(x = blood.pressure)) +
      geom_density(aes(fill = as.factor(target)), alpha = 0.5)+
   labs(fill = "Disease Status", shape = "sex", x = "blood pressure")+
    scale_y_continuous(expand = c(0,0,0.001,0.001))
- d2 = ggplot(data,aes(x=chol))+
+ d2 = ggplot(data,aes(x=cholesterol))+
   geom_density(aes(fill=as.factor(target)), alpha = 0.5)+
   labs(fill = "Disease Status", shape = "sex", x = "cholesterol")+
    scale_y_continuous(expand = c(0,0,0.001,0.001))
- d3 =ggplot(data,aes(x=thalach))+
+ d3 =ggplot(data,aes(x=heart.rate))+
   geom_density(aes(fill=as.factor(target)), alpha = 0.5)+
   labs(fill = "Disease Status", shape = "sex", x = "heart rate")+
    scale_y_continuous(expand = c(0,0,0.001,0.001))
@@ -69,7 +75,7 @@ p <- list()
 data5 = data1 %>% filter(target ==1)
 data6 = data1 %>% filter(target ==0)
 
-p[["scatter"]]  <- ggplot(data, aes(x = age, y = thalach)) +
+p[["scatter"]]  <- ggplot(data, aes(x = age, y = heart.rate)) +
   geom_point(aes(col = as.factor(target), shape = as.factor(sex))) +
   labs(fill = "Disease Status") +
   stat_smooth(data = data5, method = "lm", se = FALSE, col = "red", size = 1.5) +
@@ -78,31 +84,33 @@ p[["scatter"]]  <- ggplot(data, aes(x = age, y = thalach)) +
   labs(color = "Disease Status", y = "heart rate",shape = "sex")
 
 
- p[["scatter2"]] <- ggplot(data, aes(x = age,y = trestbps))+
+ p[["scatter2"]] <- ggplot(data, aes(x = age,y = blood.pressure))+
   geom_point(aes(col=as.factor(target),shape = as.factor(sex))) +
    labs(fill = "Disease Status") +
-   stat_smooth(data = data5, aes(x = age, y = trestbps), method = "lm", se = FALSE, col = "red", size = 1.5)+
+   stat_smooth(data = data5, aes(x = age, y = blood.pressure), method = "lm", se = FALSE, col = "red", size = 1.5)+
   stat_smooth(data = data6, method = "lm", se = FALSE, col = "blue", size = 1.5) +
    theme(legend.text = element_text(size = 15))+ 
    labs(color = "Disease Status", y = "blood pressure",shape = "sex")
  
- p[["scatter3"]] <- ggplot(data, aes(x = age,y = chol))+
+ p[["scatter3"]] <- ggplot(data, aes(x = age,y = cholesterol))+
   geom_point(aes(col=as.factor(target),shape = as.factor(sex))) + 
    labs(fill = "Disease Status") + 
-   stat_smooth(data = data5, aes(x = age, y = chol), method = "lm", se = FALSE, col = "red", size = 1.5)+
+   stat_smooth(data = data5, aes(x = age, y = cholesterol), method = "lm", se = FALSE, col = "red", size = 1.5)+
   stat_smooth(data = data6, method = "lm", se = FALSE, col = "blue", size = 1.5) +
    theme(legend.text = element_text(size = 15)) + 
    labs(color = "Disease Status", y = "cholesterol",shape = "sex")
 
   p[["scatter"]]/p[["scatter2"]]/p[["scatter3"]] +
     plot_layout(guides = "collect") &
-   plot_annotation(theme = theme(legend.position = "right", legend.title = element_text(size = 10)))
+   plot_annotation(theme = theme(legend.position = "right", legend.title = element_text(size = 15)))
 ```
 
 #grouping age into 4 groups
 ```{r}
-theme_set(theme_gray())
-data=read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv")
+data=read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv")%>% 
+  rename("heart.rate" = "thalach",
+         "blood.pressure" = "trestbps",
+         "cholesterol" = "chol")
 min(data$age)
 max(data$age)
 heart4 <- data %>% 
@@ -111,11 +119,11 @@ heart4 <- data %>%
                                  41<=age& age<=50 ~ "40-50",
                                  51<=age& age<=60 ~ "50-60",
                                  61<=age ~ "over 60",
-                                 ))
+                                 )) 
 
 heart4 <- heart4 %>%
   mutate(row_index = row_number())
-
+data77=read.csv("https://github.com/yicenyang/stat436/raw/main/heart.csv")%>% drop_na()
 ```
 
 
@@ -125,7 +133,7 @@ heart4 <- heart4 %>%
 data_table <- function(data, selected_) {
   data %>%
     filter(selected_) %>%
-    select(age,sex,trestbps,chol,thalach,thal,target)
+    select(age,sex,blood.pressure,cholesterol,heart.rate,target)
 }
 data_mean <- function(data, selected_) {
   data %>%
@@ -135,10 +143,9 @@ data_mean <- function(data, selected_) {
 }
 
 counts <- list(
-  "trestbps" = count(data, trestbps),
-  "chol" = count(data, chol),
-  "thalach" = count(data, thalach),
-  "age" = count(data, age)
+  "blood.pressure" = count(data, blood.pressure),
+  "cholesterol " = count(data, cholesterol),
+  "heart.rate" = count(data, heart.rate)
 )
 
 bar_plot <- function(sub_flights, v, width = 5) {
@@ -160,14 +167,14 @@ scatterplot <- function(data, selected_) {
   data %>%
     mutate(selected_ = selected_) %>%
     ggplot() +
-    geom_point(aes(chol, thalach, col = as.factor(target), shape = as.factor(sex), alpha = as.numeric(selected_))) +
+    geom_point(aes(cholesterol, heart.rate, col = as.factor(target), shape = as.factor(sex), alpha = as.numeric(selected_))) +
     scale_alpha(range = c(0.05, 0.6)) +
     labs(shape = "sex", alpha = "Selected", col = "Disease Status")
 }
 
 
 reset_selection <- function(x, brush) {
-  xvar <- str_match(brush$mapping$x, "trestbps|chol|age")[1]
+  xvar <- str_match(brush$mapping$x, "blood.pressure|cholesterol|age")[1]
   brushedPoints(x, brush, allRows = TRUE, xvar = xvar)$selected_
 }
 add_age_range <- function(data) {
@@ -176,9 +183,8 @@ add_age_range <- function(data) {
                                   41 <= age & age <= 50 ~ "40-50",
                                   51 <= age & age <= 60 ~ "50-60",
                                   61 <= age ~ "over 60",
-    ))
+    )) 
 }
-
 ```
 
 
@@ -201,8 +207,8 @@ ui1 <- fluidPage(
         tags$b(textOutput("average_heart_disease_rate"))
       ),
       selectInput("age","Select age range:",choices = sort(unique(heart4$age_range)), multiple = TRUE),
-      plotOutput("histogram_trestbps", brush = brushOpts("plot_brush", direction = "x"), height = 200),
-      plotOutput("histogram_chol", brush = brushOpts("plot_brush", direction = "x"), height = 200),
+      plotOutput("histogram_blood.pressure", brush = brushOpts("plot_brush", direction = "x"), height = 200),
+      plotOutput("histogram_cholesterol", brush = brushOpts("plot_brush", direction = "x"), height = 200),
       plotOutput("histogram_heartrate", brush = brushOpts("plot_brush", direction = "x"), height = 200)
     ),
     column(6,
@@ -241,16 +247,22 @@ server1 <- function(input, output) {
       }
     }
   )
-  output$histogram_trestbps <- renderPlot({
-  plot_overlay(selected(),"trestbps",1) + ggtitle("Distribution of Blood Pressure (trestbps)/cholestrol(chol)/heart rate(thalach)/age")
+  output$histogram_blood.pressure <- renderPlot({
+  plot_overlay(selected(),"blood.pressure",1) + 
+      ggtitle("Distribution of blood.pressure/cholesterol/heart.rate")
 })
-  output$histogram_chol <- renderPlot(plot_overlay(selected(),"chol",5))
-  output$histogram_heartrate <- renderPlot(plot_overlay(selected(),"thalach",5))
-  output$scatterplot <- renderPlot({scatterplot(heart4, selected())+ ggtitle("Correlation between heart rate and cholestrol")
+  output$histogram_cholesterol  <- renderPlot(
+    plot_overlay(selected(),"cholesterol",5))
+  output$histogram_heartrate <- renderPlot(
+    plot_overlay(selected(),"heart.rate",5)+
+    xlab("heart rate"))
+  output$scatterplot <- renderPlot({
+    scatterplot(heart4, selected())+
+      ggtitle("Correlation between heart rate and cholesterol")
 })
   output$table <- renderDataTable(data_table(heart4, selected()))
   output$average_heart_disease_rate <- renderText({
-    paste0("Average heart disease rate for selected data: ", data_mean(data1, selected()))
+    paste0("Average heart disease rate for selected data: ", data_mean(data77, selected()))
   })
   output$info = renderText({
     paste0("Selected data count: ", nrow(filter(heart4, selected())))
@@ -268,7 +280,7 @@ app1 <- shinyApp(ui = ui1, server = server1)
 #generate function
 stat.test <- heart4 %>%
   group_by(age_range) %>%
-  t_test(chol ~ target,paired = FALSE) %>%
+  t_test(cholesterol~ target,paired = FALSE) %>%
   adjust_pvalue() %>%
   add_significance("p.adj")
 stat.test
@@ -293,9 +305,9 @@ stat =function(x,y){
 ```
 
 ```{r}
-chol = stat(x = "chol", y = "target")
-trestbps = stat(x = "trestbps", y = "target")
-thalach = stat(x = "thalach", y = "target")
+cholesterol  = stat(x = "cholesterol", y = "target")
+blood.pressure = stat(x = "blood.pressure", y = "target")
+heart.rate = stat(x = "heart.rate", y = "target")
 ```
 
 ```{r}
@@ -306,17 +318,20 @@ bp1 = function(x){
 ```
 
 ```{r,fig.width = 11}
-p1 = bp1("chol")+ 
-  stat_pvalue_manual(chol, label = "custom.label") +
+p1 = bp1("cholesterol")+ 
+  stat_pvalue_manual(cholesterol, label = "custom.label") +
+  xlab("Disease Status")+
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.10)))
 
 
-p2 = bp1("trestbps")+ 
-  stat_pvalue_manual(trestbps, label = "custom.label") +
+p2 = bp1("blood.pressure")+ 
+  stat_pvalue_manual(blood.pressure, label = "custom.label") +
+  xlab("Disease Status")+
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.10)))
 
-p3 = bp1("thalach")+ 
-  stat_pvalue_manual(thalach, label = "custom.label") +
+p3 = bp1("heart.rate")+ 
+  stat_pvalue_manual(heart.rate, label = "custom.label") +
+  xlab("Disease Status")+
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.10)))
 
 p1+ p2+ p3+ plot_layout(guide = "collect")
