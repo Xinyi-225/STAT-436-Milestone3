@@ -70,7 +70,7 @@ summary(model)
 ```
 
 #scatterplots
-```{r, fig.width = 8, fig.height = 6}
+```{r}
 p <- list()
 
 data5 = data1 %>% filter(target == 1)
